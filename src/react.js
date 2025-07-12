@@ -1,3 +1,25 @@
+
+function createTextElement (text) {
+  return {
+    type: 'TEXT_ELEMENT',
+    props: {
+      nodeValue: text,
+      children: []
+    }
+  }
+}
+
+function createElement (type, props, ...children) {
+  // 使用 ... 语法，即使用户没有传参，会接收到一个空数组
+  return {
+    type,
+    props: {
+      ...props,
+      children: children.map(child => typeof child === 'object' ? child : createTextElement(child))
+    }
+  }
+}
+
 const isProperty = key => key !== 'children'
 
 function render(element, container) {
@@ -11,5 +33,6 @@ function render(element, container) {
 }
 
 export default {
-  render
+  render,
+  createElement
 }
