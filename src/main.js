@@ -4,7 +4,7 @@ import { createRoot } from './reactDom'
 createRoot(document.querySelector('#root')).render(App)
 
 function callback (deadline) {
-  console.log(deadline.timeRemaining());
+  // console.log(deadline.timeRemaining());
 }
 
 /**

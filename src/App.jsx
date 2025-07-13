@@ -27,6 +27,9 @@
 import React from "./react"
 
 // jsx
-const App = <div id="app" style="color: red">xulei { 1 + 2 }</div>
+const App = <div id="app" style="color: pink">
+  <h1>xulei</h1>
+  <h2>xuhong</h2>
+</div>
 
 export default App
