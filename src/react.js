@@ -1,4 +1,4 @@
-function createTextElement (text) {
+function createTextElement(text) {
   return {
     type: 'TEXT_ELEMENT',
     props: {
@@ -8,7 +8,7 @@ function createTextElement (text) {
   }
 }
 
-function createElement (type, props, ...children) {
+function createElement(type, props, ...children) {
   // 使用 ... 语法，即使用户没有传参，会接收到一个空数组
   return {
     type,
@@ -19,25 +19,32 @@ function createElement (type, props, ...children) {
   }
 }
 
-const isProperty = key => key !== 'children'
 let nextUnitOfWork, // 下一个工作单元
-    wipFiber // 
+  wipFiber,
+  currentRoot; 
+
 function render(element, container) {
   nextUnitOfWork = {
     dom: container,
     props: {
-      children: [ element ]
+      children: [element]
     }
   }
-
   wipFiber = nextUnitOfWork
-  
 }
 
-function workLoop (deadline) {
+export function update () {
+  nextUnitOfWork = {
+    ...currentRoot
+  }
+
+  wipFiber = nextUnitOfWork;
+}
+
+function workLoop(deadline) {
   let shouldYield = false;
 
-  while(nextUnitOfWork && !shouldYield) {
+  while (nextUnitOfWork && !shouldYield) {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
     shouldYield = deadline.timeRemaining() < 1
   }
@@ -46,21 +53,25 @@ function workLoop (deadline) {
     // 当链表创建完成，提交 root
     commitRoot()
   }
-
   requestIdleCallback(workLoop)
 }
 
-function commitRoot () {
+function commitRoot() {
   commitWork(wipFiber.child)
+  currentRoot = wipFiber;
   wipFiber = null
 }
 
-function commitWork (fiber) {
+function commitWork(fiber) {
   if (!fiber) return
-  const parentFiber = fiber.parent
-  const parentDom = fiber.parent.dom
-  
-  parentDom.append(fiber.dom)
+  let parentFiber = fiber.parent
+  while (!parentFiber.dom) {
+    parentFiber = parentFiber.parent
+  }
+  const parentDom = parentFiber.dom
+  if (fiber.dom) {
+    parentDom.append(fiber.dom)
+  }
 
   commitWork(fiber.child)
   commitWork(fiber.sibling)
@@ -68,9 +79,14 @@ function commitWork (fiber) {
 
 
 // 将 dom 节点，组装成链表数据结构
-function performUnitOfWork (fiber) {
-  if (!fiber.dom) {
-    fiber.dom = createDom(fiber)
+function performUnitOfWork(fiber) {
+  const isFunctionComponent = fiber.type instanceof Function;
+  if (isFunctionComponent) {
+    fiber.props.children = [fiber.type(fiber.props)]
+  } else {
+    if (!fiber.dom) {
+      fiber.dom = createDom(fiber)
+    }
   }
 
   const elements = fiber.props.children
@@ -97,7 +113,7 @@ function performUnitOfWork (fiber) {
     }
 
     prevSibling = newFiber
-    index ++
+    index++
   }
 
   if (fiber.child) return fiber.child
@@ -112,10 +128,20 @@ function performUnitOfWork (fiber) {
   }
 }
 
-function createDom (fiber) {
+const isEvent = key => key.startsWith('on')
+const isProperty = key => key !== 'children' && !isEvent(key)
+const eventType = key => key.substring(2).toLowerCase()
+function createDom(fiber) {
   const dom = fiber.type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(fiber.type);
+  console.log(fiber);
+  
   Object.keys(fiber.props).filter(isProperty).forEach((name) => {
     dom[name] = fiber.props[name]
+  })
+
+  // 添加事件
+  Object.keys(fiber.props).filter(isEvent).forEach((name) => {
+    dom.addEventListener(eventType(name), fiber.props[name])
   })
   return dom
 }
