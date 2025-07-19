@@ -19,9 +19,7 @@ function createElement(type, props, ...children) {
   }
 }
 
-let nextUnitOfWork, // 下一个工作单元
-  wipFiber,
-  currentRoot; 
+let nextUnitOfWork, wipFiber, currentRoot;
 
 function render(element, container) {
   nextUnitOfWork = {
@@ -33,7 +31,7 @@ function render(element, container) {
   wipFiber = nextUnitOfWork
 }
 
-export function update () {
+export function update() {
   nextUnitOfWork = {
     ...currentRoot
   }
@@ -77,19 +75,40 @@ function commitWork(fiber) {
   commitWork(fiber.sibling)
 }
 
-
 // 将 dom 节点，组装成链表数据结构
 function performUnitOfWork(fiber) {
   const isFunctionComponent = fiber.type instanceof Function;
   if (isFunctionComponent) {
-    fiber.props.children = [fiber.type(fiber.props)]
+    updateFunctionComponent(fiber)
   } else {
-    if (!fiber.dom) {
-      fiber.dom = createDom(fiber)
-    }
+    updateHostComponent(fiber)
   }
 
-  const elements = fiber.props.children
+  if (fiber.child) return fiber.child
+  let nextFiber = fiber
+  // 当遍历到最深度的子节点，会查找其叔叔节点，没有则会向上查找
+  while (nextFiber) {
+    if (nextFiber.sibling) {
+      return nextFiber.sibling
+    }
+
+    nextFiber = nextFiber.parent
+  }
+}
+
+function updateFunctionComponent(fiber) {
+  fiber.props.children = [fiber.type(fiber.props)]
+  reconcileChildren(fiber, fiber.props.children)
+}
+
+function updateHostComponent(fiber) {
+  if (!fiber.dom) {
+    fiber.dom = createDom(fiber)
+  }
+  reconcileChildren(fiber, fiber.props.children)
+}
+
+function reconcileChildren(fiber, elements) {
   let index = 0;
   let prevSibling = null
   // 遍历子节点
@@ -115,17 +134,6 @@ function performUnitOfWork(fiber) {
     prevSibling = newFiber
     index++
   }
-
-  if (fiber.child) return fiber.child
-  let nextFiber = fiber
-  // 当遍历到最深度的子节点，会查找其叔叔节点，没有则会向上查找
-  while (nextFiber) {
-    if (nextFiber.sibling) {
-      return nextFiber.sibling
-    }
-
-    nextFiber = nextFiber.parent
-  }
 }
 
 const isEvent = key => key.startsWith('on')
@@ -133,8 +141,8 @@ const isProperty = key => key !== 'children' && !isEvent(key)
 const eventType = key => key.substring(2).toLowerCase()
 function createDom(fiber) {
   const dom = fiber.type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(fiber.type);
-  console.log(fiber);
-  
+
+  // 处理属性
   Object.keys(fiber.props).filter(isProperty).forEach((name) => {
     dom[name] = fiber.props[name]
   })

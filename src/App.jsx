@@ -44,6 +44,7 @@ function App(props) {
   return (
     <div id="app" style="color: pink; border: solid 1px #000;" onClick={handleClick}>
       <h2>xuhong: { a }</h2>
+      <h2>xulei</h2>
     </div>
   )
 }
