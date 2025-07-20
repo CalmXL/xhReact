@@ -33,18 +33,31 @@ import React, { update } from "./react"
 // </div>
 
 let a = 1;
+
+function H3(props) {
+  return <h3>h3</h3>
+}
+
+function H4(props) {
+  return <h4>h4</h4>
+}
+
+
+
 function App(props) {
 
   const handleClick = () => {
     console.log('event..');
     update()
-    a ++;
+    a++;
   }
 
   return (
     <div id="app" style="color: pink; border: solid 1px #000;" onClick={handleClick}>
-      <h2>xuhong: { a }</h2>
+      <h2>xuhong: {a}</h2>
       <h2>xulei</h2>
+      {/* <h2>{a % 2 === 0 ? <div>'偶数'</div> : <p>'奇数'</p>}</h2> */}
+      <h2>{a % 2 ? <H3>'偶数'</H3> : <H4>'奇数'</H4>}</h2>
     </div>
   )
 }

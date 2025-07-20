@@ -33,7 +33,8 @@ function render(element, container) {
 
 export function update() {
   nextUnitOfWork = {
-    ...currentRoot
+    ...currentRoot,
+    alternate: currentRoot, // 记录上一次的 fiber
   }
 
   wipFiber = nextUnitOfWork;
@@ -55,9 +56,19 @@ function workLoop(deadline) {
 }
 
 function commitRoot() {
+  deletions.forEach(commitWork)
+  deletions = []
   commitWork(wipFiber.child)
   currentRoot = wipFiber;
   wipFiber = null
+}
+
+function commitDeletion(fiber, parentDom) {
+  if (fiber.dom) {
+    parentDom.removeChild(fiber.dom)
+  } else {
+    commitDeletion(fiber.child, parentDom)
+  }
 }
 
 function commitWork(fiber) {
@@ -67,6 +78,12 @@ function commitWork(fiber) {
     parentFiber = parentFiber.parent
   }
   const parentDom = parentFiber.dom
+
+  if (fiber.effectTag === 'DELETION') {
+    commitDeletion(fiber, parentDom)
+    return
+  }
+
   if (fiber.dom) {
     parentDom.append(fiber.dom)
   }
@@ -108,20 +125,52 @@ function updateHostComponent(fiber) {
   reconcileChildren(fiber, fiber.props.children)
 }
 
+let deletions = [];
 function reconcileChildren(fiber, elements) {
+  let oldFiber = fiber.alternate && fiber.alternate.child;
   let index = 0;
   let prevSibling = null
+  let newFiber
   // 遍历子节点
-  while (index < elements.length) {
+  while (index < elements.length || oldFiber) {
     const element = elements[index]
-    const newFiber = {
-      type: element.type,
-      props: element.props,
-      dom: null,
-      parent: fiber,
-      child: null,
-      sibling: null
+    const sameType = oldFiber && oldFiber.type === element.type;
+
+    // 如果是同一个类型的节点
+    if (sameType) {
+      newFiber = {
+        type: element.type,
+        props: element.props,
+        dom: oldFiber.dom,
+        parent: fiber,
+        alternate: oldFiber, // 记录上一次的 fiber
+        child: null,
+        sibling: null,
+        effectTag: 'UPDATE'
+      }
     }
+
+    // 如果不是同一个类型的节点
+    if (element && !sameType) {
+      newFiber = {
+        type: element.type,
+        props: element.props,
+        dom: null,
+        parent: fiber,
+        alternate: null,
+        child: null,
+        sibling: null,
+        effectTag: 'PLACEMENT'
+      }
+    }
+
+    // 如果存在旧的节点，但是类型不同
+    if (oldFiber && !sameType) {
+      oldFiber.effectTag = 'DELETION'
+      deletions.push(oldFiber)
+    }
+
+    if (oldFiber) oldFiber = oldFiber.sibling;
 
     if (index === 0) {
       // 构建 child 
