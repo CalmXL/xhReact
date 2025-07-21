@@ -84,7 +84,11 @@ function commitWork(fiber) {
     return
   }
 
-  if (fiber.dom) {
+  if (fiber.effectTag === 'UPDATE' && fiber.dom) {
+    updateDom(fiber.dom, fiber.alternate.props, fiber.props)
+  }
+
+  if (fiber.effectTag === "PLACEMENT" && fiber.dom) {
     parentDom.append(fiber.dom)
   }
 
@@ -185,22 +189,49 @@ function reconcileChildren(fiber, elements) {
   }
 }
 
+
+function createDom(fiber) {
+  const dom = fiber.type === 'TEXT_ELEMENT'
+    ? document.createTextNode('')
+    : document.createElement(fiber.type);
+
+  updateDom(dom, {}, fiber.props)
+
+  return dom
+}
+
 const isEvent = key => key.startsWith('on')
 const isProperty = key => key !== 'children' && !isEvent(key)
 const eventType = key => key.substring(2).toLowerCase()
-function createDom(fiber) {
-  const dom = fiber.type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(fiber.type);
+const isGone = (prev, next) => key => !(key in next)
+const isNew = (prev, next) => key => prev[key] !== next[key]
+function updateDom(dom, prevProps, nextProps) {
+  // 删除旧的属性
+  Object.keys(prevProps)
+    .filter(isProperty)
+    .filter(isGone(prevProps, nextProps))
+    .forEach(name => dom[name] = '')
 
-  // 处理属性
-  Object.keys(fiber.props).filter(isProperty).forEach((name) => {
-    dom[name] = fiber.props[name]
-  })
+  // 增加属性
+  Object.keys(nextProps)
+    .filter(isProperty)
+    .filter(isNew(prevProps, nextProps))
+    .forEach(name => dom[name] = nextProps[name])
+
+  // 删除事件
+  Object.keys(nextProps)
+    .filter(isEvent)
+    .filter(key => !(key in nextProps) || isNew(prevProps, nextProps)(key))
+    .forEach((name) => {
+      dom.removeEventListener(eventType(name), prevProps[name])
+    })
 
   // 添加事件
-  Object.keys(fiber.props).filter(isEvent).forEach((name) => {
-    dom.addEventListener(eventType(name), fiber.props[name])
-  })
-  return dom
+  Object.keys(nextProps)
+    .filter(isEvent)
+    .forEach((name) => {
+      dom.addEventListener(eventType(name), nextProps[name])
+    })
 }
 
 requestIdleCallback(workLoop)
