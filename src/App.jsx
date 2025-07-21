@@ -24,7 +24,7 @@
 // // 可以使用自定义的 a.createElement 
 // // import a from "./react"
 
-import React, { update } from "./react"
+import React, { update, useState } from "./react"
 
 // jsx
 // const App = <div id="app" style="color: pink">
@@ -42,22 +42,23 @@ function H4(props) {
   return <h4>h4</h4>
 }
 
-
-
 function App(props) {
+  const [value, setValue] = useState(0)
 
   const handleClick = () => {
     console.log('event..');
-    update()
-    a++;
+    // update()
+    // a++;
+    // setValue(v => v + 1)
+    setValue(100)
   }
 
   return (
     <div id="app" style="color: pink; border: solid 1px #000;" onClick={handleClick}>
-      <h2>xuhong: {a}</h2>
+      <h2>xuhong: {value}</h2>
       <h2>xulei</h2>
       {/* <h2>{a % 2 === 0 ? <div>'偶数'</div> : <p>'奇数'</p>}</h2> */}
-      <h2>{a % 2 ? <H3>'偶数'</H3> : <H4>'奇数'</H4>}</h2>
+      <h2>{value % 2 ? <H3>'偶数'</H3> : <H4>'奇数'</H4>}</h2>
     </div>
   )
 }

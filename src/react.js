@@ -19,7 +19,7 @@ function createElement(type, props, ...children) {
   }
 }
 
-let nextUnitOfWork, wipFiber, currentRoot;
+let nextUnitOfWork, wipRootFiber, currentRoot;
 
 function render(element, container) {
   nextUnitOfWork = {
@@ -28,16 +28,7 @@ function render(element, container) {
       children: [element]
     }
   }
-  wipFiber = nextUnitOfWork
-}
-
-export function update() {
-  nextUnitOfWork = {
-    ...currentRoot,
-    alternate: currentRoot, // 记录上一次的 fiber
-  }
-
-  wipFiber = nextUnitOfWork;
+  wipRootFiber = nextUnitOfWork
 }
 
 function workLoop(deadline) {
@@ -48,7 +39,7 @@ function workLoop(deadline) {
     shouldYield = deadline.timeRemaining() < 1
   }
 
-  if (!nextUnitOfWork && wipFiber) {
+  if (!nextUnitOfWork && wipRootFiber) {
     // 当链表创建完成，提交 root
     commitRoot()
   }
@@ -58,9 +49,9 @@ function workLoop(deadline) {
 function commitRoot() {
   deletions.forEach(commitWork)
   deletions = []
-  commitWork(wipFiber.child)
-  currentRoot = wipFiber;
-  wipFiber = null
+  commitWork(wipRootFiber.child)
+  currentRoot = wipRootFiber;
+  wipRootFiber = null
 }
 
 function commitDeletion(fiber, parentDom) {
@@ -117,7 +108,37 @@ function performUnitOfWork(fiber) {
   }
 }
 
+function update() {
+  nextUnitOfWork = {
+    ...currentRoot,
+    alternate: currentRoot, // 记录上一次的 fiber
+  }
+
+  wipRootFiber = nextUnitOfWork;
+}
+
+export function useState(initValue) {
+  const oldHook = wipFiber.alternate && wipFiber.alternate.hooks[wipFiber.hookIndex];
+  const hook = {
+    state: oldHook ? oldHook.state : initValue,
+    queue: []
+  }
+  const actions = oldHook ? oldHook.queue : hook.queue
+  actions.forEach(action => hook.state = action instanceof Function ? action(hook.state) : action)
+  const setState = action => {
+    hook.queue.push(action)
+    update()
+  }
+  wipFiber.hooks.push(hook)
+  wipFiber.hookIndex++;
+  return [hook.state, setState]
+}
+
+let wipFiber;
 function updateFunctionComponent(fiber) {
+  wipFiber = fiber;
+  wipFiber.hooks = []
+  wipFiber.hookIndex = 0;
   fiber.props.children = [fiber.type(fiber.props)]
   reconcileChildren(fiber, fiber.props.children)
 }
